@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Token</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #111;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        .container {
+            text-align: center;
+            color: white;
+        }
+        .token-box {
+            background: #222;
+            border: 2px solid white;
+            padding: 10px;
+            margin: 20px;
+            width: 300px;
+            word-break: break-all;
+        }
+        .timer {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+        button {
+            background: white;
+            border: none;
+            padding: 10px 20px;
+            color: Black;
+            cursor: pointer;
+            border-radius: 20px;
+        }
+        button:hover {
+            background: lightgray;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="background"></canvas>
+    <div class="container">
+        <h1>Your access token</h1>
+        <div class="timer" id="timer"></div>
+        <div class="token-box" id="token-box"></div>
+        <button onclick="copyToken()">Copy</button>
+    </div>
+    <script>
+        function copyToken() {
+            const token = document.getElementById('token-box').innerText;
+            navigator.clipboard.writeText(token).then(() => {
+                alert('Token copied!');
+            });
+        }
+
+        function generateToken() {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let token = '';
+            for (let i = 0; i < 28; i++) {
+                token += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return token;
+        }
+
+        function updateToken() {
+            const savedToken = localStorage.getItem('accessToken');
+            const lastGenerated = localStorage.getItem('tokenTimestamp');
+            const now = new Date().getTime();
+            const oneDay = 24 * 60 * 60 * 1000;
+
+            if (!savedToken || !lastGenerated || (now - lastGenerated > oneDay)) {
+                const newToken = generateToken();
+                localStorage.setItem('accessToken', newToken);
+                localStorage.setItem('tokenTimestamp', now);
+            }
+            document.getElementById('token-box').innerText = localStorage.getItem('accessToken');
+            startTimer();
+        }
+
+        function startTimer() {
+            const lastGenerated = parseInt(localStorage.getItem('tokenTimestamp'));
+            const oneDay = 24 * 60 * 60 * 1000;
+            
+            function updateTimer() {
+                const now = new Date().getTime();
+                const timeLeft = oneDay - (now - lastGenerated);
+                if (timeLeft <= 0) {
+                    updateToken();
+                    return;
+                }
+                const hours = Math.floor((timeLeft / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((timeLeft / (1000 * 60)) % 60);
+                const seconds = Math.floor((timeLeft / 1000) % 60);
+                document.getElementById('timer').innerText = `Next token in: ${hours}h ${minutes}m ${seconds}s`;
+            }
+            setInterval(updateTimer, 1000);
+            updateTimer();
+        }
+
+        updateToken();
+
+        const canvas = document.getElementById('background');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        const numParticles = 100;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.radius = 2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'white';
+                ctx.fill();
+            }
+        }
+
+        function createParticles() {
+            particles = [];
+            for (let i = 0; i < numParticles; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function drawLines() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let dx = particles[i].x - particles[j].x;
+                    let dy = particles[i].y - particles[j].y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 100) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = 'white';
+                        ctx.lineWidth = 0.5;
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+            drawLines();
+            requestAnimationFrame(animate);
+        }
+
+        createParticles();
+        animate();
+    </script>
+</body>
+</html>
